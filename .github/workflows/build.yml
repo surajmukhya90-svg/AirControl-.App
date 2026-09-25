@@ -1,0 +1,49 @@
+name: Build AirControl APK
+
+on:
+  push:
+    branches: [ "**" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Unzip Fresh Project Files
+        run: |
+          unzip -o AirControl*.zip
+          if [ -d "AirControl" ]; then
+            rm -rf AirControl/.github
+            cp -rf AirControl/* .
+          fi
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.7'
+
+      - name: Configure Android Properties and Fixes
+        run: |
+          sed -i 's/@xml\/accessibility_service_config\.xml/@xml\/accessibility_service_config/g' app/src/main/AndroidManifest.xml
+          echo "android.useAndroidX=true" >> gradle.properties
+          echo "android.enableJetifier=true" >> gradle.properties
+          echo "android.suppressUnsupportedCompileSdk=35" >> gradle.properties
+          echo "org.gradle.jvmargs=-Xmx4096m" >> gradle.properties
+
+      - name: Compile and Build APK
+        run: gradle assembleDebug --no-daemon
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: AirControl-App
+          path: "**/build/outputs/apk/debug/*.apk"
